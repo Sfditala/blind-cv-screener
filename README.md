@@ -27,7 +27,7 @@ The blind sheet has one row per applicant: an ID like `C-4A488L`, the five score
 
 ## The workflow
 
-<!-- WORKFLOW_SCREENSHOT -->
+<img src="assets/workflow.png" alt="The workflow in n8n: two triggers (the demo batch and the form), Config, collect applicants, extract PDF text, read CV, anonymize (AI), check anonymization, score (AI), verify evidence, then the blind scores sheet, the identities sheet, and for not-a-fit applicants feedback (AI) saved as a Gmail draft." width="100%">
 
 Two triggers: the **form** for real applicants, and **Run demo batch**, which downloads the 8 demo CVs from this repo. Code nodes do the rules. The three *(AI)* nodes are the only model calls, and each one is followed by a Code node that checks what came back.
 
@@ -51,8 +51,9 @@ The plan's hardest test: two CVs with the same experience, word for word, one fr
 |---|---|---|---|
 | #19 | 23 | 18 | The model wrote `evidence_year` instead of `evidence_quote` on one of Sara's criteria, so the check found no quote and gave 0. **A bug in my code**, now fixed (ADR-005). |
 | #20 | 21 | 23 | No bug. The same sentence, *"3 years of experience"*, got a 3 for Ahmad and a 5 for Sara. |
+| #21 | 21 | 23 | The same again, on the same criterion. |
 
-**The criterion failed: 2 points apart, not 0.5.** But the anonymized texts the scorer received were the same apart from a `[removed]` here and there, so it couldn't have known which one was Sara. The gap is the model's own inconsistency on a borderline score (the rubric says 3 for 1–2 years and 5 for 3+ years), and in another run it could go the other way. The verdict was the same for both. A fair screen needs a stable scorer as well as a blind one, and that's the next thing I'd fix: score each CV twice and flag criteria where the two runs disagree.
+**The criterion failed: 2 points apart, not 0.5.** But the anonymized texts the scorer received were the same apart from a `[removed]` here and there, so it couldn't have known which one was Sara. The gap is the model's own inconsistency on a borderline score (the rubric says 3 for 1–2 years and 5 for 3+ years), and two runs in a row came out the same way, so I can't rule out that something in the anonymized text tips it. Dana shows the same instability from the other side: 11 (review) in run #20 and 10 (not a fit) in run #21, from the same CV. The verdict was the same for both. A fair screen needs a stable scorer as well as a blind one, and that's the next thing I'd fix: score each CV twice and flag criteria where the two runs disagree.
 
 ## What I'd tell you before you use it
 
