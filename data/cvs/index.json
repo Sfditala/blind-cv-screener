@@ -1,0 +1,58 @@
+[
+  {
+    "file": "cv-01-rami.pdf",
+    "lang": "en",
+    "expect": "strong",
+    "name": "Rami Haddad",
+    "email": "rami.haddad@example.com"
+  },
+  {
+    "file": "cv-02-lina.pdf",
+    "lang": "ar",
+    "expect": "strong",
+    "name": "لينا الخطيب",
+    "email": "lina.k@example.com"
+  },
+  {
+    "file": "cv-03-omar.pdf",
+    "lang": "en",
+    "expect": "mid",
+    "name": "Omar Saleh",
+    "email": "omar.saleh@example.com"
+  },
+  {
+    "file": "cv-04-hiba.pdf",
+    "lang": "en",
+    "expect": "weak",
+    "name": "Hiba Nasser",
+    "email": "hiba.nasser@example.com"
+  },
+  {
+    "file": "cv-05-yousef.pdf",
+    "lang": "ar",
+    "expect": "mid-low",
+    "name": "يوسف عبيدات",
+    "email": "yousef.o@example.com"
+  },
+  {
+    "file": "cv-06-dana.pdf",
+    "lang": "en",
+    "expect": "mid",
+    "name": "Dana Qasem",
+    "email": "dana.q@example.com"
+  },
+  {
+    "file": "cv-07-ahmad.pdf",
+    "lang": "en",
+    "expect": "pair",
+    "name": "Ahmad Mansour",
+    "email": "ahmad.mansour@example.com"
+  },
+  {
+    "file": "cv-08-sara.pdf",
+    "lang": "en",
+    "expect": "pair",
+    "name": "Sara Mansour",
+    "email": "sara.mansour@example.com"
+  }
+]
