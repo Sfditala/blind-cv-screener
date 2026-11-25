@@ -19,7 +19,7 @@ const cols = (names) => `{ mappingMode: 'defineBelow', matchingColumns: [], valu
 const llm = (name, field, batch) => `node({ type: 'n8n-nodes-base.httpRequest', version: 4.2, config: { name: ${J(name)}, retryOnFail: true, maxTries: 3, waitBetweenTries: 5000,
   parameters: { method: 'POST', url: expr("{{ $('Config').first().json.llm_url }}"), authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
     sendBody: true, specifyBody: 'json', jsonBody: expr('{{ JSON.stringify($json.${field}) }}'),
-    options: { timeout: 120000${batch ? ", batching: { batch: { batchSize: 1, batchInterval: 4000 } }" : ''} } },
+    options: { timeout: 120000${batch ? ", batching: { batch: { batchSize: 1, batchInterval: 13000 } }" : ''} } },
   credentials: ${cred('httpHeaderAuth', 'Model API key (Header Auth)')} } })`;
 
 const sdk = `import { workflow, node, trigger, ifElse, newCredential, expr } from '@n8n/workflow-sdk';

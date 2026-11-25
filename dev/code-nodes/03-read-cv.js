@@ -28,13 +28,17 @@ function preRedact(text, name, email) {
   if (email) t = t.replace(new RegExp(esc(email), 'gi'), '[email removed]');
   t = t.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email removed]');
   t = t.replace(/(\+?\d[\d\s-]{7,}\d)/g, '[phone removed]');
-  for (const part of String(name).split(/\s+/).filter((p) => p.length >= 3)) t = t.replace(new RegExp(esc(part), 'gi'), '[name removed]');
+  // n8n's PDF reader can return Arabic words with their letters reversed, so look for both spellings
+  for (const part of String(name).split(/\s+/).filter((p) => p.length >= 3)) {
+    for (const form of [part, [...part].reverse().join('')]) t = t.replace(new RegExp(esc(form), 'gi'), '[name removed]');
+  }
   return t;
 }
 
 const system = `You anonymize CVs before they are scored, so the scorer cannot be influenced by who the applicant is.
 Remove: name, email, phone, address or city of residence, date of birth and age, gender, nationality, religion, marital status and children, photo mentions, social profile links.
 Replace each removed value with [removed]. Make gendered references to the applicant neutral (English: "they"; Arabic job titles: the neutral or masculine-generic form).
+The text was extracted from a PDF. Arabic words may come out with their letters in reverse order (e.g. "انيل بيطخلا" for "لينا الخطيب", "ةيصخش تامولعم" for "معلومات شخصية"). Restore every Arabic word to its correct spelling and keep the words in reading order. This repair is the only change you may make besides removing identifiers.
 Keep EVERYTHING else exactly as written: same words, same numbers, same order, same language. Do not summarize, translate, fix spelling or add anything. Experience, skills, education, company names and dates of jobs stay.
 Return JSON: {"anonymized_text": string, "removed": [string]} where "removed" lists the categories you removed.`;
 
