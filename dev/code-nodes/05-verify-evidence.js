@@ -20,7 +20,10 @@ return apps.map((app, i) => {
   for (const r of cfg.rubric) {
     const c = byKey[r.key] || {};
     let score = Math.max(0, Math.min(5, Math.round(Number(c.score) || 0)));
-    const quote = String(c.evidence_quote || '').trim();
+    // The model sometimes misspells the field name (seen: "evidence_year"). Any evidence_* field
+    // is accepted, because the quote itself is still checked against the CV below.
+    const quoteField = c.evidence_quote ?? Object.entries(c).find(([k]) => k.startsWith('evidence'))?.[1];
+    const quote = String(quoteField || '').trim();
     const found = quote && haystack.includes(norm(quote));
     if (score > 0 && !found) { unverified++; flags.push(`${r.key}: quote not in CV, scored 0`); score = 0; }
     scores[r.key] = score;

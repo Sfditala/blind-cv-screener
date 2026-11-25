@@ -5,7 +5,7 @@ const apps = $('Collect applicants').all();
 const texts = $input.all();
 
 // ---- ADR-001: Arabic from PDFs arrives reversed, glyph by glyph, in presentation forms ----
-const PRESENTATION = /[ﭐ-﷿ﹰ-﻿]/;
+const PRESENTATION = /[\uFB50-\uFDFF\uFE70-\uFEFF]/;
 function fixArabicLine(line) {
   if (!PRESENTATION.test(line)) return line;
   const words = line.trim().split(/\s{2,}/).map((w) => {
@@ -37,14 +37,14 @@ function preRedact(text, name, email) {
 
 const system = `You anonymize CVs before they are scored, so the scorer cannot be influenced by who the applicant is.
 Remove: name, email, phone, address or city of residence, date of birth and age, gender, nationality, religion, marital status and children, photo mentions, social profile links.
-Replace each removed value with [removed]. Make gendered references to the applicant neutral (English: "they"; Arabic job titles: the neutral or masculine-generic form).
+Replace each removed value with [removed]. Make gendered references to the applicant neutral (English: "they"; Arabic: rewrite feminine forms that refer to the applicant into the masculine-generic form, for verbs, job titles and adjectives alike, e.g. "مسوقة رقمية" → "مسوق رقمي", "أدارت" → "أدار", "كتبت" → "كتب").
 The text was extracted from a PDF. Arabic words may come out with their letters in reverse order (e.g. "انيل بيطخلا" for "لينا الخطيب", "ةيصخش تامولعم" for "معلومات شخصية"). Restore every Arabic word to its correct spelling and keep the words in reading order. This repair is the only change you may make besides removing identifiers.
 Keep EVERYTHING else exactly as written: same words, same numbers, same order, same language. Do not summarize, translate, fix spelling or add anything. Experience, skills, education, company names and dates of jobs stay.
 Return JSON: {"anonymized_text": string, "removed": [string]} where "removed" lists the categories you removed.`;
 
 return apps.map((app, i) => {
   const raw = fixArabic(String(texts[i].json.text || ''));
-  const arabic = (raw.match(/[؀-ۿ]/g) || []).length;
+  const arabic = (raw.match(/[\u0600-\u06FF]/g) || []).length;
   const lang = arabic > raw.length * 0.2 ? 'ar' : 'en';
   const pre = preRedact(raw, app.json.name, app.json.email);
   const candidate_id = shortId(app.json.email + '|' + app.json.cv_file + '|' + app.json.submitted_at);

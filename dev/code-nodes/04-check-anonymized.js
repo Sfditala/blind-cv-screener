@@ -11,8 +11,8 @@ const LEAK_PATTERNS = [
   [/\b(male|female)\b|ذكر|أنثى/gi, 'gender'],
   [/(date of birth|born on|تاريخ الميلاد)\s*:?\s*[\d/.-]{6,}/gi, 'date of birth'],
   [/\b\d{2}\s*(years old)\b|العمر\s*:?\s*\d+/gi, 'age'],
-  [/(marital status|الحالة الاجتماعية)\s*:\s*(?!\[removed\])[^\n]+/gi, 'marital status'],
-  [/(nationality|الجنسية)\s*:\s*(?!\[removed\])[^\n]+/gi, 'nationality'],
+  [/(marital status|الحالة الاجتماعية)\s*:(?![ \t]*\[removed\])[^\n]+/gi, 'marital status'],
+  [/(nationality|الجنسية)\s*:(?![ \t]*\[removed\])[^\n]+/gi, 'nationality'],
 ];
 
 const rubricText = cfg.rubric.map((r) => `- ${r.key} (${r.name}): ${r.guide}`).join('\n');
