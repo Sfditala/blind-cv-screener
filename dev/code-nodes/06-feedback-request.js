@@ -9,6 +9,6 @@ return $input.all().map(({ json: c }) => {
   const system = `You write feedback for a job applicant who was not selected for "${cfg.job_title}".
 Write in ${language}. Be respectful and specific to THIS CV. No generic advice, no false hope, no mention of scores or AI.
 Return JSON: {"points": [two strings, each one concrete thing they could add or improve for this kind of role, max 30 words each], "closing": "one encouraging sentence"}`;
-  return { json: { ...c, feedback_body: { model: cfg.model, temperature: 0.3, response_format: { type: 'json_object' },
+  return { json: { ...c, feedback_body: {
     messages: [{ role: 'system', content: system }, { role: 'user', content: `Scores: ${scores}\nScorer notes:\n${c._reasons}\n\nCV:\n${anon[c.candidate_id] || ''}` }] } } };
 });

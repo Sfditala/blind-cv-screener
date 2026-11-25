@@ -1,0 +1,920 @@
+{
+  "name": "D2 · blind-cv-screener",
+  "nodes": [
+    {
+      "id": "93e2436b-9465-13d5-59a2-72450912d1ca",
+      "name": "Note · Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -484.00000000000006
+      ],
+      "parameters": {
+        "width": 520,
+        "height": 330,
+        "color": 4,
+        "content": "## ⚙️ Before the first run · قبل أول تشغيل\n1. **Config** ← the two sheet IDs (blind scores + identities). Each sheet needs the column headers from the README.\n2. **Save scores** + **Save identity** ← Google Sheets OAuth2\n3. **Save as Gmail draft** ← Gmail OAuth2 (drafts only, nothing is sent)\n4. **Anonymize / Score / Write feedback (AI)** ← Google Gemini. On n8n Cloud pick **n8n free credits**; or your own Gemini key.\n\n▶ **Run demo batch** downloads 8 fictional CVs from the repo. The form is for real applicants."
+      }
+    },
+    {
+      "id": "766dd8bf-e9f9-5aea-c484-fa87acfd20bf",
+      "name": "Apply (form)",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.7,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "formTitle": "Digital Marketing Officer · مسؤول/ة تسويق رقمي",
+        "formDescription": "Upload your CV as a PDF. Your name and contact details are kept separate from your CV while it is reviewed. · ارفع/ي سيرتك الذاتية PDF. اسمك وبيانات التواصل بتنفصل عن السيرة وقت المراجعة.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Full name · الاسم الكامل",
+              "fieldName": "name",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email · البريد الإلكتروني",
+              "fieldName": "email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "CV (PDF) · السيرة الذاتية",
+              "fieldName": "cv",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "onReceived",
+        "options": {
+          "appendAttribution": false,
+          "buttonLabel": "Send · إرسال",
+          "respondWithOptions": {
+            "values": {
+              "respondWith": "text",
+              "formSubmittedText": "Thank you, we received your application. · شكراً، وصلنا طلبك."
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "acc82eed-99e4-39f4-1479-463e4394399f",
+      "name": "Run demo batch (8 CVs)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        220
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "276ff6ce-b8a1-5031-9ff9-58df88b9be77",
+      "name": "Download demo CVs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        220
+      ],
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/Sfditala/blind-cv-screener/main/data/demo-cvs.zip",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "dc01d020-a5ea-1385-d170-f3f117faf581",
+      "name": "Unzip demo CVs",
+      "type": "n8n-nodes-base.compression",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        220
+      ],
+      "parameters": {
+        "operation": "decompress",
+        "binaryPropertyName": "data",
+        "outputPrefix": "file_"
+      }
+    },
+    {
+      "id": "8851142d-a56f-d885-ce66-8a165b33fee7",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ============================================================\n//  ⚙️ CONFIG: the only node you need to edit\n// ============================================================\nreturn [{\n  json: {\n    company_en: 'Ufuq Marketing',\n    company_ar: 'وكالة أفق للتسويق',\n    job_title: 'Digital Marketing Officer · مسؤول/ة تسويق رقمي',\n    job_description: 'Plan and run paid social and search campaigns, create bilingual content, and report results to management. Full time, Amman.',\n\n    // Rubric: 5 criteria, each scored 0–5 by the model, and only with a quote from the CV as evidence.\n    rubric: [\n      { key: 'paid_ads', name: 'Paid ads', guide: '0 none · 3 ran campaigns · 5 managed budgets with measured results (ROAS, CPA)' },\n      { key: 'content_social', name: 'Content & social media', guide: '0 none · 3 regular content work · 5 content with measured growth' },\n      { key: 'analytics', name: 'Analytics & reporting', guide: '0 none · 3 used GA4 or reports · 5 built dashboards or regular reports for decisions' },\n      { key: 'bilingual_writing', name: 'Arabic + English writing', guide: '0 no sign · 3 writes in one language · 5 writes copy in both' },\n      { key: 'relevant_experience', name: 'Relevant experience', guide: '0 none · 2 under 1 year or internship · 3 1–2 years · 5 3+ years in marketing roles' },\n    ],\n    // Out of 25. At or above shortlist_at → shortlist. Below review_at → \"not a fit\" (a feedback DRAFT is prepared).\n    shortlist_at: 17,\n    review_at: 11,\n\n    // Sheets (tab name as shown at the bottom of each sheet)\n    candidates_sheet_id: 'YOUR_CANDIDATES_SHEET_ID',\n    identities_sheet_id: 'YOUR_IDENTITIES_SHEET_ID',\n    sheet_tab: 'Untitled',\n\n    // The model is set on the three AI nodes (Google Gemini, n8n free AI credits), not here.\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "48823e72-ffbd-c3d4-b510-6ad9367dcf9b",
+      "name": "Collect applicants",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// One item per applicant, from the form or from the demo ZIP. The CV goes to binary.data.\nconst now = $now.toFormat('yyyy-MM-dd HH:mm');\nconst out = [];\nif ($('Apply (form)').isExecuted) {\n  const f = $('Apply (form)').first();\n  const key = Object.keys(f.binary || {})[0];\n  if (!key) throw new Error('No CV file in the form submission');\n  out.push({ json: { name: String(f.json.name || '').trim(), email: String(f.json.email || '').trim(),\n    cv_file: f.binary[key].fileName || 'cv.pdf', submitted_at: now, source: 'form' }, binary: { data: f.binary[key] } });\n} else {\n  // Demo identities: fictional people, emails on example.com (drafts only, never sent)\n  const DEMO = {\n    'cv-01-rami.pdf': ['Rami Haddad', 'rami.haddad@example.com'], 'cv-02-lina.pdf': ['لينا الخطيب', 'lina.k@example.com'],\n    'cv-03-omar.pdf': ['Omar Saleh', 'omar.saleh@example.com'], 'cv-04-hiba.pdf': ['Hiba Nasser', 'hiba.nasser@example.com'],\n    'cv-05-yousef.pdf': ['يوسف عبيدات', 'yousef.o@example.com'], 'cv-06-dana.pdf': ['Dana Qasem', 'dana.q@example.com'],\n    'cv-07-ahmad.pdf': ['Ahmad Mansour', 'ahmad.mansour@example.com'], 'cv-08-sara.pdf': ['Sara Mansour', 'sara.mansour@example.com'],\n  };\n  const z = $('Unzip demo CVs').first();\n  for (const [, bin] of Object.entries(z.binary || {}).sort((a, b) => (a[1].fileName > b[1].fileName ? 1 : -1))) {\n    const [name, email] = DEMO[bin.fileName] || ['Unknown', ''];\n    out.push({ json: { name, email, cv_file: bin.fileName, submitted_at: now, source: 'demo' }, binary: { data: bin } });\n  }\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "451f282f-f166-3b1b-0726-1adce7c2b8f3",
+      "name": "Extract PDF text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data",
+        "options": {}
+      }
+    },
+    {
+      "id": "35cf9108-50d0-ec7d-402c-3bded993da59",
+      "name": "Read CV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Repair the extracted text (ADR-001), give the applicant an anonymous ID, remove the\n// identifiers code can find for sure, and build the anonymizer request (ADR-002).\nconst apps = $('Collect applicants').all();\nconst texts = $input.all();\n\n// ---- ADR-001: Arabic from PDFs arrives reversed, glyph by glyph, in presentation forms ----\nconst PRESENTATION = /[\\uFB50-\\uFDFF\\uFE70-\\uFEFF]/;\nfunction fixArabicLine(line) {\n  if (!PRESENTATION.test(line)) return line;\n  const words = line.trim().split(/\\s{2,}/).map((w) => {\n    const parts = w.split(' ').filter(Boolean);\n    const glyphy = parts.filter((p) => [...p].length <= 2).length / parts.length > 0.6;\n    return parts.reverse().join(glyphy ? '' : ' ');\n  });\n  return words.reverse().join(' ').normalize('NFKC').replace(/ ([\\u064B-\\u0652])/g, '$1'); // no space before diacritics\n}\nfunction fixArabic(text) {\n  return String(text).split('\\n').map(fixArabicLine).join('\\n');\n}\n\nfunction shortId(s) { let h = 2166136261; for (const c of s) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return 'C-' + (h >>> 0).toString(36).toUpperCase().slice(0, 6); }\nconst esc = (s) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n\n// Removes what code can find for certain: the applicant's own name, email and phone numbers.\nfunction preRedact(text, name, email) {\n  let t = text;\n  if (email) t = t.replace(new RegExp(esc(email), 'gi'), '[email removed]');\n  t = t.replace(/[\\w.+-]+@[\\w-]+\\.[\\w.]+/g, '[email removed]');\n  t = t.replace(/(\\+?\\d[\\d\\s-]{7,}\\d)/g, '[phone removed]');\n  // n8n's PDF reader can return Arabic words with their letters reversed, so look for both spellings\n  for (const part of String(name).split(/\\s+/).filter((p) => p.length >= 3)) {\n    for (const form of [part, [...part].reverse().join('')]) t = t.replace(new RegExp(esc(form), 'gi'), '[name removed]');\n  }\n  return t;\n}\n\nconst system = `You anonymize CVs before they are scored, so the scorer cannot be influenced by who the applicant is.\nRemove: name, email, phone, address or city of residence, date of birth and age, gender, nationality, religion, marital status and children, photo mentions, social profile links.\nReplace each removed value with [removed]. Make gendered references to the applicant neutral (English: \"they\"; Arabic: rewrite feminine forms that refer to the applicant into the masculine-generic form, for verbs, job titles and adjectives alike, e.g. \"مسوقة رقمية\" → \"مسوق رقمي\", \"أدارت\" → \"أدار\", \"كتبت\" → \"كتب\").\nThe text was extracted from a PDF. Arabic words may come out with their letters in reverse order (e.g. \"انيل بيطخلا\" for \"لينا الخطيب\", \"ةيصخش تامولعم\" for \"معلومات شخصية\"). Restore every Arabic word to its correct spelling and keep the words in reading order. This repair is the only change you may make besides removing identifiers.\nKeep EVERYTHING else exactly as written: same words, same numbers, same order, same language. Do not summarize, translate, fix spelling or add anything. Experience, skills, education, company names and dates of jobs stay.\nReturn JSON: {\"anonymized_text\": string, \"removed\": [string]} where \"removed\" lists the categories you removed.`;\n\nreturn apps.map((app, i) => {\n  const raw = fixArabic(String(texts[i].json.text || ''));\n  const arabic = (raw.match(/[\\u0600-\\u06FF]/g) || []).length;\n  const lang = arabic > raw.length * 0.2 ? 'ar' : 'en';\n  const pre = preRedact(raw, app.json.name, app.json.email);\n  const candidate_id = shortId(app.json.email + '|' + app.json.cv_file + '|' + app.json.submitted_at);\n  return { json: { ...app.json, candidate_id, lang, cv_text: raw, cv_chars: raw.length,\n    anon_body: {\n      messages: [{ role: 'system', content: system }, { role: 'user', content: pre }] } } };\n});\n"
+      }
+    },
+    {
+      "id": "ffc3b4c5-9e1c-09d0-04d9-878a617376c3",
+      "name": "Anonymize (AI)",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "={{ $json.anon_body.messages[1].content }}"
+            }
+          ]
+        },
+        "simplify": true,
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "={{ $json.anon_body.messages[0].content }}",
+          "maxOutputTokens": 16000,
+          "temperature": 0,
+          "thinkingBudget": 0
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Gateway credits"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "54b24078-4bfd-6c96-b04d-d176e38a0e03",
+      "name": "Read anonymizer answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Reads the model's answer (Gemini or OpenAI shape) and passes it on in one shape.\nreturn $input.all().map((i) => {\n  const j = i.json;\n  let t;\n  const parts = j.content?.parts || j.candidates?.[0]?.content?.parts;\n  if (Array.isArray(parts)) t = parts.filter((p) => !p.thought && typeof p.text === 'string').map((p) => p.text).join('');\n  else t = j.output_text ?? j.text ?? j.content;\n  if (typeof t !== 'string') t = JSON.stringify(t ?? '');\n  t = t.trim().replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '');\n  return { json: { choices: [{ message: { content: t } }] }, pairedItem: i.pairedItem };\n});\n"
+      }
+    },
+    {
+      "id": "439a6c99-3b95-553d-5b30-c2bac53df1d7",
+      "name": "Check anonymization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ADR-002: check the anonymizer's output in code before the scorer sees anything.\n// If an identifier slipped through, code removes it and the row is flagged.\nconst cfg = $('Config').first().json;\nconst apps = $('Read CV').all();\nconst res = $input.all();\n\nconst esc = (s) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\nconst LEAK_PATTERNS = [\n  [/[\\w.+-]+@[\\w-]+\\.[\\w.]+/g, 'email'],\n  [/\\+?\\d[\\d\\s-]{7,}\\d/g, 'phone'],\n  [/\\b(male|female)\\b|ذكر|أنثى/gi, 'gender'],\n  [/(date of birth|born on|تاريخ الميلاد)\\s*:?\\s*[\\d/.-]{6,}/gi, 'date of birth'],\n  [/\\b\\d{2}\\s*(years old)\\b|العمر\\s*:?\\s*\\d+/gi, 'age'],\n  [/(marital status|الحالة الاجتماعية)\\s*:(?![ \\t]*\\[removed\\])[^\\n]+/gi, 'marital status'],\n  [/(nationality|الجنسية)\\s*:(?![ \\t]*\\[removed\\])[^\\n]+/gi, 'nationality'],\n];\n\nconst rubricText = cfg.rubric.map((r) => `- ${r.key} (${r.name}): ${r.guide}`).join('\\n');\nconst system = `You score an anonymized CV against one job. You never see who the applicant is.\nJob: ${cfg.job_title}. ${cfg.job_description}\nRubric, each criterion 0-5:\n${rubricText}\n\nFor EVERY criterion return: key, score (integer 0-5), evidence_quote, reason.\n- evidence_quote: copied EXACTLY, character for character, from the CV text: one sentence or fragment, max 25 words. No paraphrasing, no \"...\", no translation.\n- No evidence in the CV → score 0 and evidence_quote \"\".\n- Judge only what is written. Vague claims without specifics (\"results-driven\", \"improved significantly\") score at most 2.\n- reason: one short sentence, in English.\nReturn JSON: {\"criteria\":[{\"key\",\"score\",\"evidence_quote\",\"reason\"}], \"summary\": \"one sentence\"}`;\n\nreturn apps.map((app, i) => {\n  const flags = [];\n  let text = '';\n  try {\n    const parsed = JSON.parse(res[i].json.choices[0].message.content);\n    text = String(parsed.anonymized_text || '');\n  } catch (e) { /* handled below */ }\n  if (text.length < app.json.cv_chars * 0.4) throw new Error(`Anonymizer returned too little text for ${app.json.candidate_id}`);\n\n  // Leak check: the applicant's own name parts, then generic identifiers\n  for (const part of String(app.json.name).split(/\\s+/).filter((p) => p.length >= 3)) {\n    const re = new RegExp(esc(part), 'gi');\n    if (re.test(text)) { flags.push('name leaked, removed by code'); text = text.replace(re, '[removed]'); }\n  }\n  for (const [re, label] of LEAK_PATTERNS) {\n    if (text.match(re)) { flags.push(`${label} leaked, removed by code`); text = text.replace(re, '[removed]'); }\n  }\n\n  return { json: { candidate_id: app.json.candidate_id, anonymized_text: text, anon_flags: flags,\n    score_body: {\n      messages: [{ role: 'system', content: system }, { role: 'user', content: text }] } } };\n});\n"
+      }
+    },
+    {
+      "id": "c512a48e-640f-109c-a363-804d584c32d0",
+      "name": "Score (AI)",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        2240,
+        0
+      ],
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "={{ $json.score_body.messages[1].content }}"
+            }
+          ]
+        },
+        "simplify": true,
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "={{ $json.score_body.messages[0].content }}",
+          "maxOutputTokens": 16000,
+          "temperature": 0,
+          "thinkingBudget": 0
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Gateway credits"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "0e02d339-a01d-8427-da51-f56aa36cfddc",
+      "name": "Read scorer answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Reads the model's answer (Gemini or OpenAI shape) and passes it on in one shape.\nreturn $input.all().map((i) => {\n  const j = i.json;\n  let t;\n  const parts = j.content?.parts || j.candidates?.[0]?.content?.parts;\n  if (Array.isArray(parts)) t = parts.filter((p) => !p.thought && typeof p.text === 'string').map((p) => p.text).join('');\n  else t = j.output_text ?? j.text ?? j.content;\n  if (typeof t !== 'string') t = JSON.stringify(t ?? '');\n  t = t.trim().replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '');\n  return { json: { choices: [{ message: { content: t } }] }, pairedItem: i.pairedItem };\n});\n"
+      }
+    },
+    {
+      "id": "3e8358ab-f914-c6f9-03cb-b85c70e93aaa",
+      "name": "Verify evidence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// ADR-003: a score only counts if its quote really is in the (anonymized) CV.\n// Totals and the verdict are computed here, in code.\nconst cfg = $('Config').first().json;\nconst apps = $('Read CV').all();\nconst anon = $('Check anonymization').all();\nconst res = $input.all();\n\nconst norm = (s) => String(s).normalize('NFKC').toLowerCase().replace(/[“”\"«»]/g, '').replace(/\\s+/g, ' ').trim();\n\nreturn apps.map((app, i) => {\n  const a = anon[i].json;\n  const flags = [...a.anon_flags];\n  let parsed = { criteria: [] };\n  try { parsed = JSON.parse(res[i].json.choices[0].message.content); } catch (e) { flags.push('scorer returned no JSON'); }\n  const byKey = Object.fromEntries((parsed.criteria || []).map((c) => [c.key, c]));\n  const haystack = norm(a.anonymized_text);\n\n  const scores = {}; const evidence = [];\n  let unverified = 0;\n  for (const r of cfg.rubric) {\n    const c = byKey[r.key] || {};\n    let score = Math.max(0, Math.min(5, Math.round(Number(c.score) || 0)));\n    // The model sometimes misspells the field name (seen: \"evidence_year\"). Any evidence_* field\n    // is accepted, because the quote itself is still checked against the CV below.\n    const quoteField = c.evidence_quote ?? Object.entries(c).find(([k]) => k.startsWith('evidence'))?.[1];\n    const quote = String(quoteField || '').trim();\n    const found = quote && haystack.includes(norm(quote));\n    if (score > 0 && !found) { unverified++; flags.push(`${r.key}: quote not in CV, scored 0`); score = 0; }\n    scores[r.key] = score;\n    evidence.push(`${r.name} ${score}/5: ${found ? '«' + quote + '»' : '(no evidence)'}`);\n  }\n  const total = Object.values(scores).reduce((s, x) => s + x, 0);\n  const verdict = total >= cfg.shortlist_at ? 'shortlist' : total >= cfg.review_at ? 'review' : 'not a fit';\n\n  return { json: {\n    candidate_id: app.json.candidate_id, submitted_at: app.json.submitted_at, cv_language: app.json.lang,\n    total_25: total, verdict, ...scores, evidence: evidence.join('\\n'), flags: flags.join('; '),\n    // kept for the next steps, not written to the candidates sheet\n    _name: app.json.name, _email: app.json.email, _cv_file: app.json.cv_file,\n    _summary: parsed.summary || '', _reasons: (parsed.criteria || []).map((c) => `${c.key}: ${c.reason}`).join('\\n'),\n    _unverified: unverified,\n  } };\n});\n"
+      }
+    },
+    {
+      "id": "513db458-e3a9-5e80-6fa6-2e840c97be61",
+      "name": "Save scores (blind sheet)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2912,
+        -220
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.candidates_sheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Config').first().json.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "value": {
+            "candidate_id": "={{ $json.candidate_id }}",
+            "submitted_at": "={{ $json.submitted_at }}",
+            "cv_language": "={{ $json.cv_language }}",
+            "total_25": "={{ $json.total_25 }}",
+            "verdict": "={{ $json.verdict }}",
+            "paid_ads": "={{ $json.paid_ads }}",
+            "content_social": "={{ $json.content_social }}",
+            "analytics": "={{ $json.analytics }}",
+            "bilingual_writing": "={{ $json.bilingual_writing }}",
+            "relevant_experience": "={{ $json.relevant_experience }}",
+            "evidence": "={{ $json.evidence }}",
+            "flags": "={{ $json.flags }}"
+          },
+          "schema": [
+            {
+              "id": "candidate_id",
+              "displayName": "candidate_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_at",
+              "displayName": "submitted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cv_language",
+              "displayName": "cv_language",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total_25",
+              "displayName": "total_25",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "verdict",
+              "displayName": "verdict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "paid_ads",
+              "displayName": "paid_ads",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content_social",
+              "displayName": "content_social",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analytics",
+              "displayName": "analytics",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "bilingual_writing",
+              "displayName": "bilingual_writing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "relevant_experience",
+              "displayName": "relevant_experience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidence",
+              "displayName": "evidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "flags",
+              "displayName": "flags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "7ca00bc6-9706-ed4b-0bf6-a2579850792b",
+      "name": "Save identity (HR only)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2912,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Config').first().json.identities_sheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Config').first().json.sheet_tab }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "value": {
+            "candidate_id": "={{ $json.candidate_id }}",
+            "name": "={{ $json._name }}",
+            "email": "={{ $json._email }}",
+            "submitted_at": "={{ $json.submitted_at }}",
+            "cv_file": "={{ $json._cv_file }}"
+          },
+          "schema": [
+            {
+              "id": "candidate_id",
+              "displayName": "candidate_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_at",
+              "displayName": "submitted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cv_file",
+              "displayName": "cv_file",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "id": "d4ff3198-e2b7-2804-bcfb-cf3947440cc6",
+      "name": "Not a fit?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2912,
+        220
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f9b3c21e-895b-e559-22fa-8fbdd5f7a004",
+              "leftValue": "={{ $json.verdict }}",
+              "rightValue": "not a fit",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "26998184-7dbb-0501-e9f4-67aecc1d0ed8",
+      "name": "Feedback request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        220
+      ],
+      "parameters": {
+        "jsCode": "// For \"not a fit\" only: ask the model for two concrete, kind improvement points.\n// The model sees the anonymized CV and the scores, never the name (ADR-002).\nconst cfg = $('Config').first().json;\nconst anon = Object.fromEntries($('Check anonymization').all().map((i) => [i.json.candidate_id, i.json.anonymized_text]));\n\nreturn $input.all().map(({ json: c }) => {\n  const scores = cfg.rubric.map((r) => `${r.name}: ${c[r.key]}/5`).join(', ');\n  const language = c.cv_language === 'ar' ? 'Arabic (clear, warm Levantine-friendly Modern Standard Arabic)' : 'English';\n  const system = `You write feedback for a job applicant who was not selected for \"${cfg.job_title}\".\nWrite in ${language}. Be respectful and specific to THIS CV. No generic advice, no false hope, no mention of scores or AI.\nReturn JSON: {\"points\": [two strings, each one concrete thing they could add or improve for this kind of role, max 30 words each], \"closing\": \"one encouraging sentence\"}`;\n  return { json: { ...c, feedback_body: {\n    messages: [{ role: 'system', content: system }, { role: 'user', content: `Scores: ${scores}\\nScorer notes:\\n${c._reasons}\\n\\nCV:\\n${anon[c.candidate_id] || ''}` }] } } };\n});\n"
+      }
+    },
+    {
+      "id": "8b794bbb-63ef-1ca5-ebdb-7e5fd0640e23",
+      "name": "Write feedback (AI)",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        3360,
+        220
+      ],
+      "parameters": {
+        "resource": "text",
+        "operation": "message",
+        "modelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "={{ $json.feedback_body.messages[1].content }}"
+            }
+          ]
+        },
+        "simplify": true,
+        "jsonOutput": true,
+        "options": {
+          "systemMessage": "={{ $json.feedback_body.messages[0].content }}",
+          "maxOutputTokens": 16000,
+          "temperature": 0.3,
+          "thinkingBudget": 0
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Gateway credits"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "4e206535-0055-7839-2f63-75d4955ede40",
+      "name": "Read feedback answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        220
+      ],
+      "parameters": {
+        "jsCode": "// Reads the model's answer (Gemini or OpenAI shape) and passes it on in one shape.\nreturn $input.all().map((i) => {\n  const j = i.json;\n  let t;\n  const parts = j.content?.parts || j.candidates?.[0]?.content?.parts;\n  if (Array.isArray(parts)) t = parts.filter((p) => !p.thought && typeof p.text === 'string').map((p) => p.text).join('');\n  else t = j.output_text ?? j.text ?? j.content;\n  if (typeof t !== 'string') t = JSON.stringify(t ?? '');\n  t = t.trim().replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '');\n  return { json: { choices: [{ message: { content: t } }] }, pairedItem: i.pairedItem };\n});\n"
+      }
+    },
+    {
+      "id": "e44036d6-63c4-d14d-67f4-7535c9f3b41d",
+      "name": "Build feedback email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3808,
+        220
+      ],
+      "parameters": {
+        "jsCode": "// ADR-004: the email becomes a Gmail DRAFT. A person reads it and decides whether to send it.\nconst cfg = $('Config').first().json;\nconst reqs = $('Feedback request').all();\nconst esc = (s) => String(s ?? '').replace(/[&<>\"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[ch]));\n\nreturn $input.all().map((r, i) => {\n  const c = reqs[i].json;\n  let fb = { points: [], closing: '' };\n  try { fb = JSON.parse(r.json.choices[0].message.content); } catch (e) { /* empty points → draft says so */ }\n  const ar = c.cv_language === 'ar';\n  const first = String(c._name || '').split(/\\s+/)[0];\n  const points = (fb.points || []).slice(0, 2).map((p) => `<li style=\"margin:0 0 8px;\">${esc(p)}</li>`).join('');\n  const html = ar\n    ? `<div dir=\"rtl\" style=\"font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:1.8;color:#1f2937;\">\n<p>مرحباً ${esc(first)}،</p>\n<p>شكراً لتقديمك على وظيفة <b>${esc(cfg.job_title)}</b> وللوقت اللي أعطيته لطلبك.</p>\n<p>بعد مراجعة الطلبات، قررنا ما نكمل بطلبك لهالوظيفة. وحابين نشاركك نقطتين ممكن يقووا ملفك بفرص مشابهة:</p>\n<ol>${points}</ol>\n<p>${esc(fb.closing)}</p>\n<p>مع التحية،<br>${esc(cfg.company_ar)}</p></div>`\n    : `<div style=\"font-family:Arial,sans-serif;font-size:15px;line-height:1.7;color:#1f2937;\">\n<p>Hi ${esc(first)},</p>\n<p>Thank you for applying for the <b>${esc(cfg.job_title)}</b> role, and for the time you put into your application.</p>\n<p>We've decided not to move forward with your application for this role. Here are two things that could strengthen your profile for similar roles:</p>\n<ol>${points}</ol>\n<p>${esc(fb.closing)}</p>\n<p>Best regards,<br>${esc(cfg.company_en)}</p></div>`;\n  return { json: { to: c._email, candidate_id: c.candidate_id,\n    subject: ar ? `بخصوص طلبك لوظيفة ${cfg.job_title}` : `Your application for ${cfg.job_title}`, html } };\n});\n"
+      }
+    },
+    {
+      "id": "29bf955a-6c4a-fb5d-95e9-f3daf17e36c3",
+      "name": "Save as Gmail draft (HR sends)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4032,
+        220
+      ],
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "sendTo": "={{ $json.to }}"
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Apply (form)": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run demo batch (8 CVs)": {
+      "main": [
+        [
+          {
+            "node": "Download demo CVs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download demo CVs": {
+      "main": [
+        [
+          {
+            "node": "Unzip demo CVs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unzip demo CVs": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Collect applicants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect applicants": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF text": {
+      "main": [
+        [
+          {
+            "node": "Read CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read CV": {
+      "main": [
+        [
+          {
+            "node": "Anonymize (AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anonymize (AI)": {
+      "main": [
+        [
+          {
+            "node": "Read anonymizer answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read anonymizer answer": {
+      "main": [
+        [
+          {
+            "node": "Check anonymization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check anonymization": {
+      "main": [
+        [
+          {
+            "node": "Score (AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score (AI)": {
+      "main": [
+        [
+          {
+            "node": "Read scorer answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read scorer answer": {
+      "main": [
+        [
+          {
+            "node": "Verify evidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify evidence": {
+      "main": [
+        [
+          {
+            "node": "Save scores (blind sheet)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save identity (HR only)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Not a fit?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not a fit?": {
+      "main": [
+        [
+          {
+            "node": "Feedback request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Feedback request": {
+      "main": [
+        [
+          {
+            "node": "Write feedback (AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write feedback (AI)": {
+      "main": [
+        [
+          {
+            "node": "Read feedback answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read feedback answer": {
+      "main": [
+        [
+          {
+            "node": "Build feedback email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build feedback email": {
+      "main": [
+        [
+          {
+            "node": "Save as Gmail draft (HR sends)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

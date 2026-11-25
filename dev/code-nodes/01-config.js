@@ -25,9 +25,6 @@ return [{
     identities_sheet_id: 'YOUR_IDENTITIES_SHEET_ID',
     sheet_tab: 'Untitled',
 
-    // Model, through the OpenAI-compatible chat API (Header Auth: Authorization = Bearer <key>)
-    llm_url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-    // Free tier: flash-lite has its own daily quota (gemini-3.5-flash allows only 20 requests/day)
-    model: 'gemini-3.5-flash-lite',
+    // The model is set on the three AI nodes (Google Gemini, n8n free AI credits), not here.
   },
 }];

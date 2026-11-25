@@ -29,3 +29,19 @@ Two details that mattered, found by testing on the demo CVs:
 - ✅ The evidence check works on Arabic too, because it compares against real text.
 - ⚠️ An English phrase of two or more words inside an Arabic line comes out in reversed word order («Ads Meta»). Readable for the model, but a quote that spans it won't match exactly.
 - ⚠️ Tested on PDFs printed from a browser. PDFs exported from Word or scanned CVs may behave differently. A scanned CV has no text at all and needs OCR, which this version doesn't do.
+
+## Update after the first runs on n8n Cloud
+n8n's *Extract From File* didn't return what pdf.js returned on my machine. It gave normal Arabic letters, not presentation forms, but with the **letters of each word reversed**, and not on every line:
+
+```
+انيل بيطخلا          ← should be: لينا الخطيب
+تامولعم ةيصخش        ← should be: معلومات شخصية
+```
+
+`fixArabicLine` only runs on lines with presentation forms, so it skipped this, which is correct: reversing again would break the lines that came out right. Reversing every Arabic word in code isn't safe either, because some words on the same line are already in the right order (`إدارة` in Lina's CV came out right).
+
+What works: the anonymizer prompt says the text may contain reversed Arabic words and asks the model to restore them. It is the only change the model is allowed to make besides removing identifiers. The model handles it well, because it reads the whole sentence and knows which spelling is a real word. The code repair stays for PDFs that do come out as presentation forms.
+
+Two side effects:
+- **Pre-redaction** looks for each name part in both spellings, `لينا` and `انيل`, so a reversed name never reaches the model.
+- **The evidence check (ADR-003)** compares quotes with the *anonymized* text, which is already repaired. Arabic quotes match: in the final run, all of Lina's and Yousef's quotes were verified.

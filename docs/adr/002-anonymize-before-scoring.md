@@ -22,6 +22,6 @@ The scorer and the feedback writer only ever see the output of step 3. Names and
 ## Consequences
 - ✅ The scoring model never receives a name, email, phone or the personal-details block.
 - ✅ The demo includes a matched pair (Ahmad and Sara: same experience, different name, gender, age, nationality and marital status) to test that the score doesn't move.
-- ⚠️ Arabic carries gender in grammar («مسوّقة»، «أخصائية»). The anonymizer is asked to neutralize titles, but verb and adjective forms can still hint at gender. This is a known residual risk.
+- ⚠️ Arabic carries gender in grammar («مسوّقة»، «أدارت»). In run #19 the anonymizer removed the name but kept these forms, so the scorer could still tell. The prompt now asks it to turn every feminine form that refers to the applicant into the masculine-generic form (`أدارت` → `أدار`), and in run #20 Lina's CV came through without one. It still depends on the model, not on code: a known residual risk.
 - ⚠️ Facts that correlate with identity stay, because they are the job evidence: university, company names, years of experience. A blind screen hides who someone is, not where they've been.
-- ⚠️ Three model calls per CV instead of one.
+- ⚠️ Two model calls per CV instead of one (three for a rejected CV, which also gets feedback).

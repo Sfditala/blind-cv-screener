@@ -1,6 +1,5 @@
 // Repair the extracted text (ADR-001), give the applicant an anonymous ID, remove the
 // identifiers code can find for sure, and build the anonymizer request (ADR-002).
-const cfg = $('Config').first().json;
 const apps = $('Collect applicants').all();
 const texts = $input.all();
 
@@ -49,6 +48,6 @@ return apps.map((app, i) => {
   const pre = preRedact(raw, app.json.name, app.json.email);
   const candidate_id = shortId(app.json.email + '|' + app.json.cv_file + '|' + app.json.submitted_at);
   return { json: { ...app.json, candidate_id, lang, cv_text: raw, cv_chars: raw.length,
-    anon_body: { model: cfg.model, temperature: 0, response_format: { type: 'json_object' },
+    anon_body: {
       messages: [{ role: 'system', content: system }, { role: 'user', content: pre }] } } };
 });

@@ -47,6 +47,6 @@ return apps.map((app, i) => {
   }
 
   return { json: { candidate_id: app.json.candidate_id, anonymized_text: text, anon_flags: flags,
-    score_body: { model: cfg.model, temperature: 0, response_format: { type: 'json_object' },
+    score_body: {
       messages: [{ role: 'system', content: system }, { role: 'user', content: text }] } } };
 });
